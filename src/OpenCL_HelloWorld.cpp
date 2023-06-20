@@ -1,3 +1,5 @@
+#define __CL_ENABLE_EXCEPTIONS
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -22,7 +24,8 @@ static std::string findFile(std::string fileName)
     return fileName;
 }
 
-int main() {
+int main()
+{
     // Vektor mérete
     const int size = 10;
 
@@ -35,10 +38,11 @@ int main() {
     cl::Platform::get(&platforms);
     cl::Context context(CL_DEVICE_TYPE_GPU);
     std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
-    
+
     std::ifstream kernelSource(findFile("kernel.cl"));
-    
-    if(kernelSource.fail()){
+
+    if (kernelSource.fail())
+    {
         std::cout << "Current path is " << std::filesystem::current_path() << '\n';
         std::cout << "kernel.cl: file not found\n";
         return 1;
@@ -49,8 +53,31 @@ int main() {
     sources.push_back(sourceCode);
 
     cl::Program program(context, sources);
-    program.build(devices);
 
+    try
+    {
+        program.build(devices);
+    }
+    catch (cl::Error &e)
+    {
+        if (e.err() == CL_BUILD_PROGRAM_FAILURE)
+        {
+            for (cl::Device dev : devices)
+            {
+                // Check the build status
+                cl_build_status status = program.getBuildInfo<CL_PROGRAM_BUILD_STATUS>(dev);
+                if (status != CL_BUILD_ERROR)
+                    continue;
+
+                // Get the build log
+                std::string name = dev.getInfo<CL_DEVICE_NAME>();
+                std::string buildlog = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
+                std::cerr << "Build log for " << name << ":" << std::endl
+                          << buildlog << std::endl;
+            }
+            return -1;
+        }
+    }
     // OpenCL kernel létrehozása
     cl::Kernel kernel1(program, "vectorAdd");
     cl::Kernel kernel2(program, "vectorAdd");
@@ -75,17 +102,19 @@ int main() {
     cl::CommandQueue queue(context, devices[0]);
 
     // Iterációk futtatása
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 100; i++)
+    {
         // Kernel futtatása
-        queue.enqueueNDRangeKernel(i%2==0 ? kernel1 : kernel2, cl::NullRange, cl::NDRange(size));
+        queue.enqueueNDRangeKernel(i % 2 == 0 ? kernel1 : kernel2, cl::NullRange, cl::NDRange(size));
         // Eredmény vektor másolása v1-be a következő iterációhoz
-        queue.enqueueReadBuffer(i%2==0 ? bufferV2 : bufferV1, CL_TRUE, 0, sizeof(int) * size, v1.data());
+        queue.enqueueReadBuffer(i % 2 == 0 ? bufferV2 : bufferV1, CL_TRUE, 0, sizeof(int) * size, v1.data());
     }
 
     // Eredmény kiíratása
     std::cout << "v1: ";
 
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++)
+    {
         std::cout << v1[i] << " ";
     }
 
