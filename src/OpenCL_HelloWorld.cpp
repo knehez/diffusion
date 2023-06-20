@@ -28,6 +28,7 @@ int main() {
 
     // Vektorok inicializálása
     std::vector<int> v1(size, 0);
+    std::vector<int> v2(size, 0);
 
     // OpenCL inicializálása
     std::vector<cl::Platform> platforms;
@@ -51,28 +52,43 @@ int main() {
     program.build(devices);
 
     // OpenCL kernel létrehozása
-    cl::Kernel kernel(program, "vectorAdd");
+    cl::Kernel kernel1(program, "vectorAdd");
+    cl::Kernel kernel2(program, "vectorAdd");
 
     // OpenCL buffer-ek létrehozása és másolása
+
     cl::Buffer bufferV1(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                         sizeof(int) * size, v1.data());
 
-    // Kernel paraméterek beállítása
-    kernel.setArg(0, bufferV1);
+    cl::Buffer bufferV2(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                        sizeof(int) * size, v2.data());
+
+    // Kernel1 paraméterek beállítása
+    kernel1.setArg(0, bufferV1);
+    kernel1.setArg(1, bufferV2);
+
+    // Kernel1 paraméterek beállítása
+    kernel2.setArg(0, bufferV2);
+    kernel2.setArg(1, bufferV1);
 
     // OpenCL parancssor létrehozása
     cl::CommandQueue queue(context, devices[0]);
 
-    queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(size));
-    
-    // Eredmény vektor másolása v1-be a következő iterációhoz
-    queue.enqueueReadBuffer(bufferV1, CL_TRUE, 0, sizeof(int) * size, v1.data());
+    // Iterációk futtatása
+    for (int i = 0; i < 5; i++) {
+        // Kernel futtatása
+        queue.enqueueNDRangeKernel(i%2==0 ? kernel1 : kernel2, cl::NullRange, cl::NDRange(size));
+        // Eredmény vektor másolása v1-be a következő iterációhoz
+        queue.enqueueReadBuffer(i%2==0 ? bufferV2 : bufferV1, CL_TRUE, 0, sizeof(int) * size, v1.data());
+    }
 
     // Eredmény kiíratása
     std::cout << "v1: ";
+
     for (int i = 0; i < size; i++) {
         std::cout << v1[i] << " ";
     }
+
     std::cout << std::endl;
 
     return 0;
