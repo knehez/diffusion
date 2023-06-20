@@ -27,8 +27,8 @@ int main() {
     const int size = 10;
 
     // Vektorok inicializálása
-    std::vector<int> v1(size, 0);
-    std::vector<int> v2(size, 0);
+    std::vector<float> v1(size, 1.0f);
+    std::vector<float> v2(size, 1.0f);
 
     // OpenCL inicializálása
     std::vector<cl::Platform> platforms;
@@ -75,7 +75,7 @@ int main() {
     cl::CommandQueue queue(context, devices[0]);
 
     // Iterációk futtatása
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 100; i++) {
         // Kernel futtatása
         queue.enqueueNDRangeKernel(i%2==0 ? kernel1 : kernel2, cl::NullRange, cl::NDRange(size));
         // Eredmény vektor másolása v1-be a következő iterációhoz
